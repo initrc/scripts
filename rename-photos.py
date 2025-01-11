@@ -48,5 +48,9 @@ def traverse_files(directory):
             rename_file(filepath)
 
 if __name__ == "__main__":
-    traverse_files(os.getcwd())
+    current_dir = os.getcwd()
+    if current_dir == os.path.expanduser("~"):
+        print("You are current in the home directry. Exiting.")
+        exit()
+    traverse_files(current_dir)
 
