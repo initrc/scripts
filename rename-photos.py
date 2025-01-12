@@ -25,6 +25,9 @@ def rename_file(filepath):
     date_taken = get_date_taken(filepath)
     if date_taken:
         old_base, old_ext = os.path.splitext(filepath)
+        # standardize jpg extensions
+        if old_ext.lower() == ".jpeg":
+            old_ext = ".jpg"
         old_filename = old_base + old_ext.lower()
         new_filename = f"{date_taken.strftime('%Y%m%d')}-{os.path.basename(old_filename)}"
         new_path = os.path.join(os.path.dirname(filepath), new_filename)
@@ -38,8 +41,6 @@ def traverse_files(directory):
     for root, directories, files in os.walk(directory):
         for filename in files:
             if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".heic")): continue 
-            if filename.lower().startswith("2024"): continue
-
             # skip already formatted files
             pattern = r"^\d{8}\-"
             if re.match(pattern, filename): continue 
