@@ -30,6 +30,11 @@ def rename_file(filepath):
         if dazz_date in old_base:
             rename_dazz_file(filepath, dazz_date)
             return
+        ## rename if %Y%m%d is already in the filename like taken by oppo
+        oppo_date = f"{date_taken.strftime('%Y%m%d')}"
+        if oppo_date in old_base:
+            rename_oppo_file(filepath, oppo_date)
+            return
         # standardize jpg extensions
         if old_ext.lower() == ".jpeg":
             old_ext = ".jpg"
@@ -48,6 +53,15 @@ def rename_dazz_file(filepath, date):
     new_date = date.replace('-', '')
     old_filename = old_base + old_ext.lower()
     new_filename = new_date + '-' + '-'.join([s for s in os.path.basename(old_filename).split() if s != date])
+    new_path = os.path.join(os.path.dirname(filepath), new_filename)
+    # print(f"{filepath} -> {new_path}")
+    os.rename(filepath, new_path)
+
+"""rename photos take by oppo"""
+def rename_oppo_file(filepath, date):
+    old_base, old_ext = os.path.splitext(filepath)
+    old_filename = old_base + old_ext.lower()
+    new_filename = date + '-' + os.path.basename(old_filename).replace(date, '').replace('_', '')
     new_path = os.path.join(os.path.dirname(filepath), new_filename)
     # print(f"{filepath} -> {new_path}")
     os.rename(filepath, new_path)
