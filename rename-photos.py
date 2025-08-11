@@ -32,8 +32,9 @@ def rename_file(filepath):
             return
         ## rename if %Y%m%d is already in the filename like taken by oppo
         oppo_date = f"{date_taken.strftime('%Y%m%d')}"
+        oppo_time = f"{date_taken.strftime('%H%M%S')}"
         if oppo_date in old_base:
-            rename_oppo_file(filepath, oppo_date)
+            rename_oppo_file(filepath, oppo_date, oppo_time)
             return
         # standardize jpg extensions
         if old_ext.lower() == ".jpeg":
@@ -58,10 +59,10 @@ def rename_dazz_file(filepath, date):
     os.rename(filepath, new_path)
 
 """rename photos take by oppo"""
-def rename_oppo_file(filepath, date):
+def rename_oppo_file(filepath, date, time):
     old_base, old_ext = os.path.splitext(filepath)
     old_filename = old_base + old_ext.lower()
-    new_filename = date + '-' + os.path.basename(old_filename).replace(date, '').replace('_', '')
+    new_filename = date + '-IMG' + time + old_ext.lower()
     new_path = os.path.join(os.path.dirname(filepath), new_filename)
     # print(f"{filepath} -> {new_path}")
     os.rename(filepath, new_path)
@@ -72,7 +73,7 @@ def traverse_files(directory):
             if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".heic")): continue 
             # skip already formatted files
             pattern = r"^\d{8}\-"
-            if re.match(pattern, filename): continue 
+            if re.match(pattern, filename): continue
 
             filepath = os.path.join(root, filename)
             rename_file(filepath)
