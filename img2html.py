@@ -29,7 +29,8 @@ def rename_to_sequential(files):
 def write_html(files):
     """Write an index.html displaying all images in order."""
     images = [f"<img src='{f}' style='max-width:100%' />" for f in files]
-    html = f"<html><body>\n{chr(10).join(images)}\n</body></html>"
+    body = "\n".join(images)
+    html = f"<html><body>\n{body}\n</body></html>"
     with open("index.html", "w") as f:
         f.write(html)
     print(f"Wrote index.html with {len(files)} images")
