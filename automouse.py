@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import pyautogui
 import random
 import time
