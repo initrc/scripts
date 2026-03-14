@@ -175,8 +175,6 @@ def traverse_files(directory):
         for filename in files:
             if not filename.lower().endswith(SUPPORTED_EXTENSIONS):
                 continue
-            if re.match(r"^[0-9]{8}-", filename):
-                continue
             filepath = os.path.join(root, filename)
             rename_file(filepath)
 
