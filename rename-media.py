@@ -12,35 +12,52 @@ VIDEO_EXTENSIONS = (".mp4", ".mov", ".mkv", ".avi")
 SUPPORTED_EXTENSIONS = IMAGE_EXTENSIONS + VIDEO_EXTENSIONS
 
 
-def extract_date_from_filename(filename):
-    """Find first 8-digit sequence in stem that is a valid YYYYMMDD date."""
+def extract_datetime_from_filename(filename):
+    """Find a datetime in the filename. Prefer 14-digit YYYYMMDDHHMMSS."""
     stem = os.path.splitext(filename)[0]
-    for match in re.finditer(r"\d{8}", stem):
+    for match in re.finditer(r"\d{14}", stem):
         candidate = match.group()
         try:
-            datetime.strptime(candidate, "%Y%m%d")
-            return candidate, match.start(), match.end()
+            dt = datetime.strptime(candidate, "%Y%m%d%H%M%S")
+            return dt
         except ValueError:
             continue
+    for date_match in re.finditer(r"\d{8}", stem):
+        date_part = date_match.group()
+        try:
+            datetime.strptime(date_part, "%Y%m%d")
+        except ValueError:
+            continue
+        remainder = stem[date_match.end():]
+        time_match = re.search(r"\d{6}", remainder)
+        if time_match:
+            time_part = time_match.group()
+            try:
+                dt = datetime.strptime(date_part + time_part, "%Y%m%d%H%M%S")
+                return dt
+            except ValueError:
+                continue
     return None
 
 
-def get_exif_date(filepath):
-    """Read EXIF tag 306 (ModifyDate) via Pillow."""
+def get_exif_datetime(filepath):
+    """Read EXIF datetime via Pillow. Prefer DateTimeOriginal/DateTimeDigitized."""
     try:
         register_heif_opener()
         img = Image.open(filepath)
         exifdata = img.getexif()
-        date_str = exifdata.get(306)
-        if date_str:
+        for tag in (36867, 36868, 306):
+            date_str = exifdata.get(tag)
+            if not date_str:
+                continue
             dt = datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
-            return dt.strftime("%Y%m%d")
+            return dt
     except (IOError, KeyError, ValueError):
         pass
     return None
 
 
-def get_video_date(filepath):
+def get_video_datetime(filepath):
     """Read creation_time via ffprobe subprocess."""
     try:
         result = subprocess.run(
@@ -58,47 +75,57 @@ def get_video_date(filepath):
         creation_time = metadata.get("format", {}).get("tags", {}).get("creation_time")
         if creation_time:
             dt = datetime.fromisoformat(creation_time.replace("Z", "+00:00"))
-            return dt.strftime("%Y%m%d")
+            local_tz = datetime.now().astimezone().tzinfo
+            if dt.tzinfo is None:
+                return dt
+            return dt.astimezone(local_tz).replace(tzinfo=None)
     except (subprocess.TimeoutExpired, json.JSONDecodeError, ValueError, FileNotFoundError):
         pass
     return None
 
 
-def get_mtime_date(filepath):
+def get_mtime_datetime(filepath):
     """Fallback: file modification time."""
     mtime = os.path.getmtime(filepath)
-    return datetime.fromtimestamp(mtime).strftime("%Y%m%d")
+    return datetime.fromtimestamp(mtime)
 
 
-def get_date(filepath):
-    """Orchestrate date extraction with priority chain."""
+def get_datetime(filepath):
+    """Orchestrate datetime extraction with priority chain."""
     filename = os.path.basename(filepath)
     ext = os.path.splitext(filename)[1].lower()
 
-    # 1. From filename
-    result = extract_date_from_filename(filename)
-    if result:
-        return result[0], "filename"
-
-    # 2. From EXIF (images only)
+    # 1. From EXIF (images only)
     if ext in IMAGE_EXTENSIONS:
-        date = get_exif_date(filepath)
-        if date:
-            return date, "exif"
+        dt = get_exif_datetime(filepath)
+        if dt:
+            return dt, "exif"
 
-    # 3. From video metadata
+    # 2. From video metadata
     if ext in VIDEO_EXTENSIONS:
-        date = get_video_date(filepath)
-        if date:
-            return date, "video"
+        dt = get_video_datetime(filepath)
+        if dt:
+            return dt, "video"
+
+    # 3. From filename
+    dt = extract_datetime_from_filename(filename)
+    if dt:
+        return dt, "filename"
 
     # 4. Fallback: mtime
-    return get_mtime_date(filepath), "mtime"
+    return get_mtime_datetime(filepath), "mtime"
 
 
-def build_new_filename(filename, date, source):
-    """Build new filename with date prefix. Remove date from original position
-    if it came from the filename, normalize .jpeg -> .jpg."""
+def extract_identifier(filename):
+    """Return the non-numeric identifier portion of the filename stem."""
+    stem = os.path.splitext(filename)[0]
+    identifier = re.sub(r"\d", "", stem)
+    identifier = identifier.strip("-_ ")
+    return identifier
+
+
+def build_new_filename(filename, dt):
+    """Build new filename as YYYYMMDD-IDENTIFIERHHMMSS, normalize .jpeg -> .jpg."""
     stem, ext = os.path.splitext(filename)
 
     if ext.lower() == ".jpeg":
@@ -106,18 +133,11 @@ def build_new_filename(filename, date, source):
     else:
         ext = ext.lower()
 
-    if source == "filename":
-        result = extract_date_from_filename(filename)
-        if result:
-            _, start, end = result
-            # Remove the date from the stem
-            new_stem = stem[:start] + stem[end:]
-            # Clean up leftover separators at the join point
-            new_stem = re.sub(r"[-_ ]{2,}", lambda m: m.group()[0], new_stem)
-            new_stem = new_stem.strip("-_ ")
-            return f"{date}-{new_stem}{ext}"
+    date_part = dt.strftime("%Y%m%d")
+    time_part = dt.strftime("%H%M%S")
+    identifier = extract_identifier(filename)
 
-    return f"{date}-{stem}{ext}"
+    return f"{date_part}-{identifier}{time_part}{ext}"
 
 
 def resolve_conflict(directory, filename):
@@ -140,8 +160,8 @@ def rename_file(filepath):
     directory = os.path.dirname(filepath)
     filename = os.path.basename(filepath)
 
-    date, source = get_date(filepath)
-    new_filename = build_new_filename(filename, date, source)
+    dt, _source = get_datetime(filepath)
+    new_filename = build_new_filename(filename, dt)
     new_filename = resolve_conflict(directory, new_filename)
 
     new_path = os.path.join(directory, new_filename)
@@ -155,7 +175,7 @@ def traverse_files(directory):
         for filename in files:
             if not filename.lower().endswith(SUPPORTED_EXTENSIONS):
                 continue
-            if re.match(r"^\d{8}-", filename):
+            if re.match(r"^[0-9]{8}-", filename):
                 continue
             filepath = os.path.join(root, filename)
             rename_file(filepath)

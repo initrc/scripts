@@ -16,15 +16,17 @@ Scripts operate on the current working directory (and subdirectories recursively
 
 ### `rename-media.py`
 
-General-purpose media file renaming. Prepends a `YYYYMMDD-` date prefix to photos and videos.
+General-purpose media file renaming. Renames to `YYYYMMDD-IDENTIFIERHHMMSS` for photos and videos.
 
 **Supported extensions:** `.jpg`, `.jpeg`, `.png`, `.heic`, `.mp4`, `.mov`, `.mkv`, `.avi`
 
-**Date extraction priority:**
-1. Filename -- first valid `YYYYMMDD` sequence (removed from original position and prepended as prefix)
-2. EXIF tag 306 (images only, via Pillow + pillow-heif)
-3. `creation_time` from ffprobe (videos only, requires ffmpeg installed)
+**Datetime extraction priority:**
+1. EXIF DateTimeOriginal/DateTimeDigitized/ModifyDate (images only, via Pillow + pillow-heif)
+2. `creation_time` from ffprobe (videos only, requires ffmpeg installed, converted to local timezone)
+3. Filename -- first valid `YYYYMMDDHHMMSS` or `YYYYMMDD` + `HHMMSS` sequence
 4. File modification time (`os.path.getmtime`)
+
+**Identifier:** non-numeric portion of the original filename stem.
 
 **Duplicate handling:** appends `-01`, `-02`, etc. before the extension.
 
