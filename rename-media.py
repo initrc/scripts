@@ -162,6 +162,8 @@ def rename_file(filepath):
 
     dt, _source = get_datetime(filepath)
     new_filename = build_new_filename(filename, dt)
+    if filename == new_filename:
+        return
     new_filename = resolve_conflict(directory, new_filename)
 
     new_path = os.path.join(directory, new_filename)
