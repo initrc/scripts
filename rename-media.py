@@ -1,4 +1,5 @@
 from datetime import datetime
+import argparse
 import json
 import os
 from PIL import Image
@@ -10,6 +11,8 @@ import subprocess
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".heic")
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".mkv", ".avi")
 SUPPORTED_EXTENSIONS = IMAGE_EXTENSIONS + VIDEO_EXTENSIONS
+ANSI_BLUE_BOLD = "\033[1;34m"
+ANSI_RESET = "\033[0m"
 
 
 def extract_datetime_from_filename(filename):
@@ -140,6 +143,29 @@ def build_new_filename(filename, dt):
     return f"{date_part}-{identifier}{time_part}{ext}"
 
 
+def highlight_time(filename, new_filename):
+    """Highlight numeric substrings in the new filename if they weren't in the old name."""
+    old_stem = os.path.splitext(filename)[0]
+    new_stem, ext = os.path.splitext(new_filename)
+
+    if not re.search(r"\d", new_stem):
+        return new_filename
+
+    parts = []
+    last_idx = 0
+    for match in re.finditer(r"\d+", new_stem):
+        start, end = match.span()
+        numeric = match.group()
+        parts.append(new_stem[last_idx:start])
+        if numeric in old_stem:
+            parts.append(numeric)
+        else:
+            parts.append(f"{ANSI_BLUE_BOLD}{numeric}{ANSI_RESET}")
+        last_idx = end
+    parts.append(new_stem[last_idx:])
+    return f"{''.join(parts)}{ext}"
+
+
 def resolve_conflict(directory, filename):
     """Append -01, -02, etc. if file already exists."""
     path = os.path.join(directory, filename)
@@ -155,7 +181,7 @@ def resolve_conflict(directory, filename):
         index += 1
 
 
-def rename_file(filepath):
+def rename_file(filepath, dry_run=False):
     """Orchestrate single file rename."""
     directory = os.path.dirname(filepath)
     filename = os.path.basename(filepath)
@@ -166,24 +192,41 @@ def rename_file(filepath):
         return
     new_filename = resolve_conflict(directory, new_filename)
 
+    display_name = highlight_time(filename, new_filename)
+    if dry_run:
+        print(f"{filepath} -> {display_name}")
+        return
+
     new_path = os.path.join(directory, new_filename)
     os.rename(filepath, new_path)
-    print(f"{filepath} -> {new_path}")
+    print(f"{filepath} -> {display_name}")
 
 
-def traverse_files(directory):
+def traverse_files(directory, dry_run=False):
     """Recursively walk directory, rename supported files, skip already-prefixed."""
     for root, directories, files in os.walk(directory):
         for filename in files:
             if not filename.lower().endswith(SUPPORTED_EXTENSIONS):
                 continue
             filepath = os.path.join(root, filename)
-            rename_file(filepath)
+            rename_file(filepath, dry_run=dry_run)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Rename media files by taken datetime.")
+    parser.add_argument(
+        "-n",
+        "--dry-run",
+        action="store_true",
+        help="Print the rename plan without renaming files.",
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
+    args = parse_args()
     current_dir = os.getcwd()
     if current_dir == os.path.expanduser("~"):
         print("You are currently in the home directory. Exiting.")
         exit()
-    traverse_files(current_dir)
+    traverse_files(current_dir, dry_run=args.dry_run)

@@ -30,7 +30,7 @@ General-purpose media file renaming. Renames to `YYYYMMDD-IDENTIFIERHHMMSS` for 
 
 **Duplicate handling:** appends `-01`, `-02`, etc. before the extension.
 
-**Skips** files already matching `^\d{8}-`.
+**Dry run:** add `--dry-run` (or `-n`) to print the rename plan without changing files. The created-time `HHMMSS` portion is highlighted in color when it didn't exist in the original name.
 
 ### `rename-lower-hyphen.py`
 
