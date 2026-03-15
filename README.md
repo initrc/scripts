@@ -22,7 +22,7 @@ General-purpose media file renaming. Renames to `YYYYMMDD-IDENTIFIERHHMMSS` for 
 
 **Datetime extraction priority:**
 1. EXIF DateTimeOriginal/DateTimeDigitized/ModifyDate (images only, via Pillow + pillow-heif)
-2. `creation_time` from ffprobe (videos only, requires ffmpeg installed, converted to local timezone)
+2. `creation_time` (or `com.apple.quicktime.creationdate`) from ffprobe (videos only, requires ffmpeg installed; uses timezone info from metadata if present, otherwise converts UTC using system timezone rules for the capture date)
 3. Filename -- first valid `YYYYMMDDHHMMSS` or `YYYYMMDD` + `HHMMSS` sequence
 4. File modification time (`os.path.getmtime`)
 

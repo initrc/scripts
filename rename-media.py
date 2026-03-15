@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import argparse
 import json
 import os
@@ -75,13 +75,23 @@ def get_video_datetime(filepath):
         if result.returncode != 0:
             return None
         metadata = json.loads(result.stdout)
-        creation_time = metadata.get("format", {}).get("tags", {}).get("creation_time")
-        if creation_time:
+        tags = metadata.get("format", {}).get("tags", {})
+        for key in (
+            "creation_time",
+            "com.apple.quicktime.creationdate",
+        ):
+            creation_time = tags.get(key)
+            if not creation_time:
+                continue
             dt = datetime.fromisoformat(creation_time.replace("Z", "+00:00"))
-            local_tz = datetime.now().astimezone().tzinfo
             if dt.tzinfo is None:
                 return dt
-            return dt.astimezone(local_tz).replace(tzinfo=None)
+            # If metadata is UTC (+00:00), convert using local timezone at dt's date.
+            if dt.utcoffset() == timedelta(0):
+                # Use timezone rules at the capture date, not current time.
+                return datetime.fromtimestamp(dt.timestamp())
+            # Otherwise, use the timezone from metadata.
+            return dt.replace(tzinfo=None)
     except (subprocess.TimeoutExpired, json.JSONDecodeError, ValueError, FileNotFoundError):
         pass
     return None
