@@ -134,6 +134,8 @@ def extract_identifier(filename):
     stem = os.path.splitext(filename)[0]
     identifier = re.sub(r"\d", "", stem)
     identifier = identifier.strip("-_ ")
+    if len(identifier) > 0:
+        identifier = "IMG"
     return identifier
 
 
