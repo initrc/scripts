@@ -30,6 +30,6 @@ bg: #B9D9EB
 ```
 
 ```
-javascript:(function(){var s=document.createElement('style');s.id='light-bm';if(document.getElementById('light-bm')){document.getElementById('light-bm').remove();return;}s.textContent='html,body,.page-wrapper,#page-header,.w-nav,.section,.container{background:#B9D9EB!important;scrollbar-color:#A0A0A0 #00000000!important;}#thread-bottom-container,#thread-bottom-container::before,#thread-bottom-container::after{background:#B9D9EB!important;}';document.head.appendChild(s);document.documentElement.style.backgroundColor='#B9D9EB';})();
+javascript:(function(){var s=document.createElement('style');s.id='light-bm';if(document.getElementById('light-bm')){document.getElementById('light-bm').remove();return;}s.textContent='html,body,.page-wrapper,#page-header,.w-nav,.section,.container,section{background:#B9D9EB!important;scrollbar-color:#A0A0A0 #00000000!important;}#thread-bottom-container,#thread-bottom-container::before,#thread-bottom-container::after{background:#B9D9EB!important;}';document.head.appendChild(s);document.documentElement.style.backgroundColor='#B9D9EB';})();
 ```
 
