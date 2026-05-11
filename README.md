@@ -36,6 +36,20 @@ General-purpose media file renaming. Renames to `YYYYMMDD-IDENTIFIERHHMMSS` for 
 
 Recursively renames files to lowercase and replaces spaces with hyphens. Operates on the current working directory and subdirectories.
 
+### `merge-videos.py`
+
+Merges video segments from the current directory in natural filename order, so `part2.mp4` comes before `part10.mp4`.
+
+**Supported extensions:** `.mp4`, `.mov`, `.mkv`, `.avi`, `.m4v`
+
+**Output:** writes `merged-YYYYMMDD-HHMMSS<ext>` using the first input file's extension. Existing `merged-*` files are excluded from inputs.
+
+**Merge mode:** uses ffmpeg concat demuxer with `-c copy` for a lossless merge. The script checks stream compatibility first with ffprobe and fails clearly if segments have different codecs, stream counts, video dimensions, pixel formats, audio layout, sample rates, or time bases.
+
+**Dry run:** add `--dry-run` (or `-n`) to print the merge order, output filename, and compatibility result without writing output.
+
+**Extension filter:** add `--include .mp4` to only include a specific extension. Repeat the flag to include multiple extensions.
+
 ### `img2html.py`
 
 Renames image files (`.png`, `.jpg`, `.jpeg`) in the current directory to sequential numbers, then writes an `index.html` displaying them in order.
