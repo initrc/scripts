@@ -1,35 +1,23 @@
 # Bookmarklet
 
-## Dark mode style inspired by [Claude](https://platform.claude.com/docs/)
+Each of the bookmarklets can toggle a custom comfort mode in the browser.
 
-Color references
+## Dark mode
 
-```
-bg: #262624
-fg: #C2C0B6
-title: #FAF9F5
-card-bg: #30302E
-card-fg: #F3F7F6
-dark-bg: #1F1E1D
-border: #42413E
-link: #D97757
-```
-
-Copy the js to the bookmark
+Colors
+- Text: #9e9e9e ([Claude docs](https://platform.claude.com/docs/) text color)
+- Lighter text: #cecece
 
 ```
-javascript:(function(){var s=document.createElement('style');s.id='claude-dark-bm';if(document.getElementById('claude-dark-bm')){document.getElementById('claude-dark-bm').remove();return;}s.textContent='html,body,.page-wrapper,.w-nav,.section,.container{background:#262624!important;color:#C2C0B6!important;scrollbar-color:#4A4A46 #262624}h1,h2,h3,h4,h5,h6{color:#FAF9F5!important}.nav-link,.navbar,.w-nav-link,.sidebar{background:#1F1E1D!important;color:#C2C0B6!important}p,li,span,div{color:#C2C0B6!important}a{color:#D97757!important}a:hover{color:#D97757!important}.card,div[class*="card"],div[class*="case"],.highlight{background:#30302E!important;border:1px solid #4A4A46!important}code{background:#30302E!important}footer,.footer,.w-nav{background:#1F1E1D!important}input,textarea,select{background:#30302E!important;color:#F3F7F6!important;border-color:#42413E!important}';document.head.appendChild(s);document.documentElement.style.backgroundColor='#262624';})();
+javascript:(function(){const id='comfort-mode';const existing=document.getElementById(id);if(existing){existing.remove();return;}const style=document.createElement('style');style.id=id;style.textContent=`body,p,div:not(.md-code-block){color:#9e9e9e!important}h1,h2,h3,h4,h5,h6,strong,input,textarea{color:#cecece!important}`;document.head.appendChild(style);})();
 ```
 
-## Light mode style inspired by [Columbia Blue](https://en.wikipedia.org/wiki/Columbia_blue)
+## Light mode
 
-Color references
-
-```
-bg: #B9D9EB
-```
+Colors
+- Background: #B9D9EB ([Columbia blue](https://en.wikipedia.org/wiki/Columbia_blue))
 
 ```
-javascript:(function(){var s=document.createElement('style');s.id='light-bm';if(document.getElementById('light-bm')){document.getElementById('light-bm').remove();return;}s.textContent='html,body,.page-wrapper,#page-header,.w-nav,.section,.container,section{background:#B9D9EB!important;scrollbar-color:#A0A0A0 #00000000!important;}#thread-bottom-container,#thread-bottom-container::before,#thread-bottom-container::after{background:#B9D9EB!important;}';document.head.appendChild(s);document.documentElement.style.backgroundColor='#B9D9EB';})();
+javascript:(function(){const id='comfort-mode';const existing=document.getElementById(id);if(existing){existing.remove();return;}const style=document.createElement('style');style.id=id;style.textContent='html,body,.page-wrapper,.w-nav,.section,.container,section{background:#B9D9EB!important;scrollbar-color:#A0A0A0 #00000000!important;}#thread-bottom-container,#thread-bottom-container::before,#thread-bottom-container::after{background:#B9D9EB!important;}';document.head.appendChild(style);})();
 ```
 
