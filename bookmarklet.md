@@ -12,6 +12,26 @@ Colors
 javascript:(function(){const id='comfort-mode';const existing=document.getElementById(id);if(existing){existing.remove();return;}const style=document.createElement('style');style.id=id;style.textContent=`body,p,div:not(.md-code-block){color:#9e9e9e!important}h1,h2,h3,h4,h5,h6,strong,input,textarea{color:#cecece!important}`;document.head.appendChild(style);})();
 ```
 
+### chat.deepseek.com
+
+Header
+- `.the-header`
+
+Footer
+- `._871cbca`: container
+- `.d72636e2`: empty container for the gap strip
+- `_0fcaa63`: "AI-generated, for reference only" caption
+
+Markdown
+- `_9bc997d`: span that fills the current color for the code block bg, revealed by bottom corners
+
+Colors
+- Background: #1f1f20 (Adjusted based on Claude's background #1f1f1e given Deepseek's colors are tinted towards blue, e.g., side bar #1b1b1c)
+
+```
+javascript:(function(){var id='comfort-mode';var ex=document.getElementById(id);if(ex){ex.remove();return;}var s=document.createElement('style');s.id=id;s.textContent=`body,html,.the-header,._871cbca,.d72636e2,._0fcaa63{background-color:#1f1f20!important;background-image:none!important}._9bc997d{color:#1f1f20!important}body,p{color:#9e9e9e!important}h1,h2,h3,h4,h5,h6,strong{color:#cecece!important}`;document.head.appendChild(s);})();
+```
+
 ## Light mode
 
 Colors
