@@ -14,7 +14,8 @@ Scripts operate on the current working directory (and subdirectories recursively
 
 ## Conventions
 
-- No shebangs -- scripts are run via `uv run`.
+- No Python shebangs -- scripts are run via `uv run`.
 - All scripts that modify files include a `~` home directory safety check.
 - Dependencies are managed in `pyproject.toml`.
 - System dependency: `ffmpeg`/`ffprobe` for video metadata.
+
