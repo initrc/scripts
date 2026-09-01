@@ -54,6 +54,21 @@ Merges video segments from the current directory in natural filename order, so `
 
 Renames image files (`.png`, `.jpg`, `.jpeg`) in the current directory to sequential numbers, then writes an `index.html` displaying them in order.
 
+### `pad-image.py`
+
+Resizes one or more images proportionally so their heights match `fg_height`, lays them out horizontally with 100px padding, and centers the composite on a pure black background of `bg_width` by `bg_height`. Saves the result in the same directory as the first input image with `-pad` appended to the filename stem.
+
+**Defaults:** `bg_width=3440`, `bg_height=1440`, `fg_height=720`, `padding=100px`
+
+**Usage:**
+```sh
+# Single or multiple images using default dimensions
+uv run --project ~/code/scripts python ~/code/scripts/pad-image.py <image1> [image2 ...]
+
+# With custom dimensions
+uv run --project ~/code/scripts python ~/code/scripts/pad-image.py <image1> [image2 ...] [bg_width] [bg_height] [fg_height]
+```
+
 ### `automouse.py`
 
 Moves the mouse cursor by one pixel in a random direction every ~5 minutes to prevent the screen from sleeping.
