@@ -1,12 +1,12 @@
-from datetime import datetime, timedelta
 import argparse
 import json
 import os
-from PIL import Image
-from pillow_heif import register_heif_opener
 import re
 import subprocess
+from datetime import datetime, timedelta
 
+from PIL import Image
+from pillow_heif import register_heif_opener
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".heic")
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".mkv", ".avi")
@@ -55,7 +55,7 @@ def get_exif_datetime(filepath):
                 continue
             dt = datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
             return dt
-    except (IOError, KeyError, ValueError):
+    except (OSError, KeyError, ValueError):
         pass
     return None
 
@@ -130,12 +130,13 @@ def get_datetime(filepath):
 
 
 def extract_identifier(filename):
-    """Return the non-numeric identifier portion of the filename stem."""
+    """Return IMG for images or VID for videos with an identifier in the stem."""
     stem = os.path.splitext(filename)[0]
     identifier = re.sub(r"\d", "", stem)
     identifier = identifier.strip("-_ ")
     if len(identifier) > 0:
-        identifier = "IMG"
+        extension = os.path.splitext(filename)[1].lower()
+        identifier = "VID" if extension in VIDEO_EXTENSIONS else "IMG"
     return identifier
 
 
@@ -210,13 +211,17 @@ def rename_file(filepath, dry_run=False):
         return
 
     new_path = os.path.join(directory, new_filename)
-    os.rename(filepath, new_path)
+    try:
+        os.rename(filepath, new_path)
+    except OSError as error:
+        print(f"Failed to rename {filepath}: {error}")
+        return
     print(f"{filepath} -> {display_name}")
 
 
 def traverse_files(directory, dry_run=False):
     """Recursively walk directory, rename supported files, skip already-prefixed."""
-    for root, directories, files in os.walk(directory):
+    for root, _directories, files in os.walk(directory):
         for filename in files:
             if not filename.lower().endswith(SUPPORTED_EXTENSIONS):
                 continue
