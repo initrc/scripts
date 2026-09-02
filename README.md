@@ -23,15 +23,18 @@ General-purpose media file renaming. Renames to `YYYYMMDD-IDENTIFIERHHMMSS` for 
 **Datetime extraction priority:**
 
 1. EXIF DateTimeOriginal/DateTimeDigitized/ModifyDate (images only, via Pillow + pillow-heif)
-2. `creation_time` (or `com.apple.quicktime.creationdate`) from ffprobe (videos only, requires ffmpeg installed; uses timezone info from metadata if present, otherwise converts UTC using system timezone rules for the capture date)
-3. Filename -- first valid `YYYYMMDDHHMMSS` or `YYYYMMDD` + `HHMMSS` sequence
-4. If no reliable date is found, the file is left unchanged. During normal runs, it is moved into an `unchanged` subfolder for review.
+2. WeChat image filename -- `mmexport` followed by a 13-digit Unix timestamp in milliseconds (converted to local time; requires exiftool to preserve the original filename in the `Comment` field)
+3. `creation_time` (or `com.apple.quicktime.creationdate`) from ffprobe (videos only, requires ffmpeg installed; uses timezone info from metadata if present, otherwise converts UTC using system timezone rules for the capture date)
+4. Filename -- first valid `YYYYMMDDHHMMSS` or `YYYYMMDD` + `HHMMSS` sequence
+5. If no reliable date is found, the file is left unchanged. During normal runs, it is moved into an `unchanged` subfolder for review.
+
+For WeChat images, the original `mmexport...` filename is written to the image `Comment` metadata before the file is renamed.
 
 **Identifier:** non-numeric portion of the original filename stem.
 
 **Duplicate handling:** appends `-01`, `-02`, etc. before the extension.
 
-**Dry run:** add `--dry-run` (or `-n`) to print the rename plan without changing files. Files without a reliable date are listed separately. The created-time `HHMMSS` portion is highlighted in color when it didn't exist in the original name.
+**Dry run:** add `--dry-run` (or `-n`) to print the rename plan without changing files. Files without a reliable date are listed separately, and WeChat original filenames whose `Comment` metadata would be written are grouped separately. The created-time `HHMMSS` portion is highlighted in color when it didn't exist in the original name.
 
 ### `rename-lower-hyphen.py`
 
@@ -77,4 +80,4 @@ Moves the mouse cursor by one pixel in a random direction every ~5 minutes to pr
 
 ## Dependencies
 
-Managed by uv. See `pyproject.toml`. System dependency: `ffmpeg`/`ffprobe` for video metadata.
+Managed by uv. See `pyproject.toml`. System dependencies: `ffmpeg`/`ffprobe` for video metadata and `exiftool` for preserving WeChat filenames in image comments.

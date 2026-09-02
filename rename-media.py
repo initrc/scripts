@@ -3,7 +3,7 @@ import json
 import os
 import re
 import subprocess
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from PIL import Image
 from pillow_heif import register_heif_opener
@@ -17,7 +17,11 @@ ANSI_RESET = "\033[0m"
 
 
 def extract_datetime_from_filename(filename):
-    """Find a datetime in the filename. Prefer 14-digit YYYYMMDDHHMMSS."""
+    """Find a datetime in the filename, including WeChat timestamps."""
+    wechat_datetime = extract_wechat_datetime(filename)
+    if wechat_datetime:
+        return wechat_datetime
+
     stem = os.path.splitext(filename)[0]
     for match in re.finditer(r"\d{14}", stem):
         candidate = match.group()
@@ -42,6 +46,25 @@ def extract_datetime_from_filename(filename):
             except ValueError:
                 continue
     return None
+
+
+def extract_wechat_datetime(filename):
+    """Extract a local datetime from a WeChat millisecond timestamp filename."""
+    stem = os.path.splitext(os.path.basename(filename))[0]
+    match = re.fullmatch(r"mmexport(\d{13})", stem, re.IGNORECASE)
+    if not match:
+        return None
+    try:
+        return (
+            datetime.fromtimestamp(
+                int(match.group(1)) / 1000,
+                tz=UTC,
+            )
+            .astimezone()
+            .replace(tzinfo=None)
+        )
+    except (OSError, OverflowError, ValueError):
+        return None
 
 
 def get_exif_datetime(filepath):
@@ -109,19 +132,52 @@ def get_datetime(filepath):
         if dt:
             return dt, "exif"
 
-    # 2. From video metadata
+    # 2. From a WeChat image filename (the timestamp is in milliseconds).
+    if ext in IMAGE_EXTENSIONS:
+        dt = extract_wechat_datetime(filename)
+        if dt:
+            return dt, "wechat"
+
+    # 3. From video metadata
     if ext in VIDEO_EXTENSIONS:
         dt = get_video_datetime(filepath)
         if dt:
             return dt, "video"
 
-    # 3. From filename
+    # 4. From filename
     dt = extract_datetime_from_filename(filename)
     if dt:
         return dt, "filename"
 
     # No reliable datetime found; do not use the file modification time.
     return None, "unknown"
+
+
+def set_exif_comment(filepath, comment):
+    """Store the original filename in the image's Comment tag via exiftool."""
+    try:
+        result = subprocess.run(
+            [
+                "exiftool",
+                "-overwrite_original",
+                f"-Comment={comment}",
+                filepath,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except FileNotFoundError as error:
+        raise OSError(
+            "exiftool is required to write the WeChat filename to EXIF Comment"
+        ) from error
+    except subprocess.TimeoutExpired as error:
+        raise OSError(f"exiftool timed out while writing {filepath}") from error
+
+    if result.returncode != 0:
+        message = result.stderr.strip() or "unknown exiftool error"
+        raise OSError(f"Could not write EXIF Comment for {filepath}: {message}")
 
 
 def extract_identifier(filename):
@@ -194,9 +250,12 @@ def move_to_unchanged(filepath):
     directory = os.path.dirname(filepath)
     filename = os.path.basename(filepath)
     unchanged_directory = os.path.join(directory, UNCHANGED_DIRECTORY)
-    os.makedirs(unchanged_directory, exist_ok=True)
-    unchanged_filename = resolve_conflict(unchanged_directory, filename)
-    os.rename(filepath, os.path.join(unchanged_directory, unchanged_filename))
+    try:
+        os.makedirs(unchanged_directory, exist_ok=True)
+        unchanged_filename = resolve_conflict(unchanged_directory, filename)
+        os.rename(filepath, os.path.join(unchanged_directory, unchanged_filename))
+    except OSError:
+        raise
     return unchanged_filename
 
 
@@ -205,7 +264,7 @@ def rename_file(filepath, dry_run=False):
     directory = os.path.dirname(filepath)
     filename = os.path.basename(filepath)
 
-    dt, _source = get_datetime(filepath)
+    dt, source = get_datetime(filepath)
     if dt is None:
         result = {
             "section": "unchanged",
@@ -219,7 +278,7 @@ def rename_file(filepath, dry_run=False):
                     f"{filename} -> {UNCHANGED_DIRECTORY}/{unchanged_filename}"
                 )
             except OSError as error:
-                result["error"] = error.strerror or str(error)
+                result["error"] = str(error)
         return result
 
     new_filename = build_new_filename(filename, dt)
@@ -234,17 +293,28 @@ def rename_file(filepath, dry_run=False):
         "display": f"{filename} -> {display_name}",
     }
     if dry_run:
+        if source == "wechat":
+            result["wechat_comment"] = filename
         return result
 
     new_path = os.path.join(directory, new_filename)
+    comment_set = False
     try:
+        if source == "wechat":
+            set_exif_comment(filepath, filename)
+            comment_set = True
         os.rename(filepath, new_path)
     except OSError as error:
-        return {
+        result = {
             "section": "errors",
             "directory": directory,
-            "display": f"{filename}: {error.strerror or str(error)}",
+            "display": f"{filename}: {error!s}",
         }
+        if comment_set:
+            result["wechat_comment"] = filename
+        return result
+    if comment_set:
+        result["wechat_comment"] = filename
     return result
 
 
@@ -280,6 +350,10 @@ def traverse_files(directory, dry_run=False):
             sections.setdefault(section, {}).setdefault(
                 result["directory"], []
             ).append(result["display"])
+            if "wechat_comment" in result:
+                sections.setdefault("wechat_comments", {}).setdefault(
+                    result["directory"], []
+                ).append(result["wechat_comment"])
             if "error" in result:
                 sections.setdefault("errors", {}).setdefault(
                     result["directory"], []
@@ -288,6 +362,12 @@ def traverse_files(directory, dry_run=False):
     print_section(
         "Files to rename" if dry_run else "Renamed files",
         sections.get("renamed", {}),
+    )
+    print_section(
+        "WeChat original filenames to store in Comment"
+        if dry_run
+        else "WeChat original filenames stored in Comment",
+        sections.get("wechat_comments", {}),
     )
     print_section(
         "Unchanged files (no usable date found)",
