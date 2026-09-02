@@ -21,16 +21,17 @@ General-purpose media file renaming. Renames to `YYYYMMDD-IDENTIFIERHHMMSS` for 
 **Supported extensions:** `.jpg`, `.jpeg`, `.png`, `.heic`, `.mp4`, `.mov`, `.mkv`, `.avi`
 
 **Datetime extraction priority:**
+
 1. EXIF DateTimeOriginal/DateTimeDigitized/ModifyDate (images only, via Pillow + pillow-heif)
 2. `creation_time` (or `com.apple.quicktime.creationdate`) from ffprobe (videos only, requires ffmpeg installed; uses timezone info from metadata if present, otherwise converts UTC using system timezone rules for the capture date)
 3. Filename -- first valid `YYYYMMDDHHMMSS` or `YYYYMMDD` + `HHMMSS` sequence
-4. File modification time (`os.path.getmtime`)
+4. If no reliable date is found, the file is left unchanged. During normal runs, it is moved into an `unchanged` subfolder for review.
 
 **Identifier:** non-numeric portion of the original filename stem.
 
 **Duplicate handling:** appends `-01`, `-02`, etc. before the extension.
 
-**Dry run:** add `--dry-run` (or `-n`) to print the rename plan without changing files. The created-time `HHMMSS` portion is highlighted in color when it didn't exist in the original name.
+**Dry run:** add `--dry-run` (or `-n`) to print the rename plan without changing files. Files without a reliable date are listed separately. The created-time `HHMMSS` portion is highlighted in color when it didn't exist in the original name.
 
 ### `rename-lower-hyphen.py`
 
@@ -61,6 +62,7 @@ Resizes one or more images proportionally so their heights match `fg_height`, la
 **Defaults:** `bg_width=3440`, `bg_height=1440`, `fg_height=720`, `padding=100px`
 
 **Usage:**
+
 ```sh
 # Single or multiple images using default dimensions
 uv run --project ~/code/scripts python ~/code/scripts/pad-image.py <image1> [image2 ...]

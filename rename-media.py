@@ -11,6 +11,7 @@ from pillow_heif import register_heif_opener
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".heic")
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".mkv", ".avi")
 SUPPORTED_EXTENSIONS = IMAGE_EXTENSIONS + VIDEO_EXTENSIONS
+UNCHANGED_DIRECTORY = "unchanged"
 ANSI_BLUE_BOLD = "\033[1;34m"
 ANSI_RESET = "\033[0m"
 
@@ -97,12 +98,6 @@ def get_video_datetime(filepath):
     return None
 
 
-def get_mtime_datetime(filepath):
-    """Fallback: file modification time."""
-    mtime = os.path.getmtime(filepath)
-    return datetime.fromtimestamp(mtime)
-
-
 def get_datetime(filepath):
     """Orchestrate datetime extraction with priority chain."""
     filename = os.path.basename(filepath)
@@ -125,8 +120,8 @@ def get_datetime(filepath):
     if dt:
         return dt, "filename"
 
-    # 4. Fallback: mtime
-    return get_mtime_datetime(filepath), "mtime"
+    # No reliable datetime found; do not use the file modification time.
+    return None, "unknown"
 
 
 def extract_identifier(filename):
@@ -194,39 +189,111 @@ def resolve_conflict(directory, filename):
         index += 1
 
 
+def move_to_unchanged(filepath):
+    """Move a file into an unchanged subfolder and return its new filename."""
+    directory = os.path.dirname(filepath)
+    filename = os.path.basename(filepath)
+    unchanged_directory = os.path.join(directory, UNCHANGED_DIRECTORY)
+    os.makedirs(unchanged_directory, exist_ok=True)
+    unchanged_filename = resolve_conflict(unchanged_directory, filename)
+    os.rename(filepath, os.path.join(unchanged_directory, unchanged_filename))
+    return unchanged_filename
+
+
 def rename_file(filepath, dry_run=False):
-    """Orchestrate single file rename."""
+    """Rename one file or return a result describing why it was not renamed."""
     directory = os.path.dirname(filepath)
     filename = os.path.basename(filepath)
 
     dt, _source = get_datetime(filepath)
+    if dt is None:
+        result = {
+            "section": "unchanged",
+            "directory": directory,
+            "display": filename,
+        }
+        if not dry_run:
+            try:
+                unchanged_filename = move_to_unchanged(filepath)
+                result["display"] = (
+                    f"{filename} -> {UNCHANGED_DIRECTORY}/{unchanged_filename}"
+                )
+            except OSError as error:
+                result["error"] = error.strerror or str(error)
+        return result
+
     new_filename = build_new_filename(filename, dt)
     if filename == new_filename:
-        return
+        return None
     new_filename = resolve_conflict(directory, new_filename)
 
     display_name = highlight_time(filename, new_filename)
+    result = {
+        "section": "renamed",
+        "directory": directory,
+        "display": f"{filename} -> {display_name}",
+    }
     if dry_run:
-        print(f"{filepath} -> {display_name}")
-        return
+        return result
 
     new_path = os.path.join(directory, new_filename)
     try:
         os.rename(filepath, new_path)
     except OSError as error:
-        print(f"Failed to rename {filepath}: {error}")
+        return {
+            "section": "errors",
+            "directory": directory,
+            "display": f"{filename}: {error.strerror or str(error)}",
+        }
+    return result
+
+
+def print_section(title, files_by_directory):
+    """Print a section with each directory path followed by its file names."""
+    if not files_by_directory:
         return
-    print(f"{filepath} -> {display_name}")
+
+    print(f"\n{title}:")
+    for directory, files in files_by_directory.items():
+        print(directory)
+        for filename in files:
+            print(f"  {filename}")
 
 
 def traverse_files(directory, dry_run=False):
-    """Recursively walk directory, rename supported files, skip already-prefixed."""
-    for root, _directories, files in os.walk(directory):
+    """Recursively process supported files and print grouped results."""
+    sections = {}
+    directory = os.path.abspath(directory)
+
+    for root, directories, files in os.walk(directory):
+        directories[:] = [
+            child for child in directories if child != UNCHANGED_DIRECTORY
+        ]
         for filename in files:
             if not filename.lower().endswith(SUPPORTED_EXTENSIONS):
                 continue
             filepath = os.path.join(root, filename)
-            rename_file(filepath, dry_run=dry_run)
+            result = rename_file(filepath, dry_run=dry_run)
+            if result is None:
+                continue
+            section = result["section"]
+            sections.setdefault(section, {}).setdefault(
+                result["directory"], []
+            ).append(result["display"])
+            if "error" in result:
+                sections.setdefault("errors", {}).setdefault(
+                    result["directory"], []
+                ).append(f"{filename}: {result['error']}")
+
+    print_section(
+        "Files to rename" if dry_run else "Renamed files",
+        sections.get("renamed", {}),
+    )
+    print_section(
+        "Unchanged files (no usable date found)",
+        sections.get("unchanged", {}),
+    )
+    print_section("Errors", sections.get("errors", {}))
 
 
 def parse_args():
